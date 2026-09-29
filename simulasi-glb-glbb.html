@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulasi GLB & GLBB</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EEF2F7;--card:#FFFFFF;--ink:#14213D;--mut:#5B6B85;--line:#D6DEEA;--s:#7C3AED;--v:#16A34A;--a:#EA580C;--acc:#2F6BFF;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0C1322;--card:#141E33;--ink:#E8EEF9;--mut:#93A3BF;--line:#26344F;--s:#A78BFA;--v:#4ADE80;--a:#FB923C;--acc:#6C97FF}}
+:root[data-theme="dark"]{--bg:#0C1322;--card:#141E33;--ink:#E8EEF9;--mut:#93A3BF;--line:#26344F;--s:#A78BFA;--v:#4ADE80;--a:#FB923C;--acc:#6C97FF}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;min-height:100%}
+h1,h2,.num{font-family:'Space Grotesk',Inter,system-ui,sans-serif}
+.num{font-variant-numeric:tabular-nums}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px}
+canvas{display:block;width:100%}
+input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:99px;background:var(--line);width:100%;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--acc);border:3px solid var(--card);box-shadow:0 0 0 1px var(--acc)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--acc);border:3px solid var(--card)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.seg button{padding:.55rem 1rem;border-radius:10px;font-weight:600;font-size:.9rem;color:var(--mut);transition:background .15s,color .15s}
+.seg button[aria-pressed=true]{background:var(--acc);color:#fff}
+.chip{border:1px solid var(--line);border-radius:99px;padding:.3rem .8rem;font-size:.8rem;color:var(--mut)}
+.chip:hover{border-color:var(--acc);color:var(--ink)}
+.f{font-family:'Space Grotesk',Inter,sans-serif;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+  <header class="flex flex-wrap items-end justify-between gap-4 mb-5">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">Laboratorium Gerak Lurus</h1>
+      <p class="text-sm mt-1" style="color:var(--mut)">Amati sendiri bagaimana posisi, kecepatan, dan percepatan berubah setiap detik.</p>
+    </div>
+    <div class="seg card flex p-1 gap-1" role="group" aria-label="Jenis gerak">
+      <button id="mGLB" aria-pressed="true">GLB</button>
+      <button id="mGLBB" aria-pressed="false">GLBB</button>
+    </div>
+  </header>
+
+  <div class="grid lg:grid-cols-3 gap-4">
+    <section class="lg:col-span-2 card overflow-hidden">
+      <canvas id="scene" style="height:340px"></canvas>
+      <div class="p-4 sm:p-5 border-t" style="border-color:var(--line)">
+        <div class="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+          <label class="block">
+            <div class="flex justify-between text-sm mb-2"><span class="font-medium">Kecepatan awal (v₀)</span><span class="f font-semibold" id="v0o"></span></div>
+            <input id="v0" type="range" min="0" max="30" step="1" value="12">
+          </label>
+          <label class="block" id="aWrap">
+            <div class="flex justify-between text-sm mb-2"><span class="font-medium">Percepatan (a)</span><span class="f font-semibold" id="ao"></span></div>
+            <input id="a" type="range" min="-5" max="5" step="0.5" value="2">
+          </label>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 mt-5">
+          <button id="play" class="rounded-xl px-5 py-2.5 font-semibold text-white" style="background:var(--acc)">Mulai</button>
+          <button id="reset" class="rounded-xl px-5 py-2.5 font-semibold card">Ulangi dari awal</button>
+          <label class="flex items-center gap-2 text-sm ml-auto" style="color:var(--mut)">Kecepatan waktu
+            <select id="rate" class="card px-2 py-2 text-sm" style="color:var(--ink)"><option value="0.25">0,25×</option><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
+          </label>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-4" id="presets"></div>
+      </div>
+    </section>
+
+    <aside class="flex flex-col gap-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div class="card p-4"><div class="text-xs" style="color:var(--mut)">Waktu (t)</div><div class="num text-2xl font-bold mt-1"><span id="rt">0,0</span><span class="text-sm font-medium"> s</span></div></div>
+        <div class="card p-4"><div class="text-xs" style="color:var(--mut)">Jarak (s)</div><div class="num text-2xl font-bold mt-1" style="color:var(--s)"><span id="rs">0,0</span><span class="text-sm font-medium"> m</span></div></div>
+        <div class="card p-4"><div class="text-xs" style="color:var(--mut)">Kecepatan (v)</div><div class="num text-2xl font-bold mt-1" style="color:var(--v)"><span id="rv">0,0</span><span class="text-sm font-medium"> m/s</span></div></div>
+        <div class="card p-4"><div class="text-xs" style="color:var(--mut)">Percepatan (a)</div><div class="num text-2xl font-bold mt-1" style="color:var(--a)"><span id="ra">0,0</span><span class="text-sm font-medium"> m/s²</span></div></div>
+      </div>
+      <div class="card p-4 flex-1">
+        <h2 class="font-bold mb-1" id="ft">Rumus GLB</h2>
+        <p class="text-sm mb-3" id="fd" style="color:var(--mut)"></p>
+        <div id="forms" class="space-y-3 text-sm"></div>
+        <div id="note" class="mt-4 text-sm rounded-xl p-3" style="background:var(--bg)"></div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-4 mt-4">
+    <div class="card p-3"><canvas id="g1" style="height:210px"></canvas></div>
+    <div class="card p-3"><canvas id="g2" style="height:210px"></canvas></div>
+    <div class="card p-3"><canvas id="g3" style="height:210px"></canvas></div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id), T=20, PPM=14;
+const S={mode:'glb',v0:12,a:0,t:0,play:false,rate:1};
+const fmt=(x,d=1)=>(Math.abs(x)<1e-9?0:x).toFixed(d).replace('.',',');
+const cs=()=>getComputedStyle(document.documentElement), C={};
+function calc(t){
+  let tt=t,a=S.a;
+  if(S.mode==='glbb'&&a<0){const ts=S.v0/-a;if(t>=ts){tt=ts;a=0}}
+  return {s:S.v0*tt+.5*S.a*tt*tt*(a===0&&S.a<0?1:1),v:S.v0+S.a*tt,a:a,tt:tt};
+}
+function fit(cv){const r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1,w=Math.round(r.width*d),h=Math.round(r.height*d);
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);return[r.width,r.height,c]}
+function hash(i){const x=Math.sin(i*127.1)*43758.5453;return x-Math.floor(x)}
+
+/* ---------- Scene ---------- */
+function drawScene(){
+  const cv=$('scene'),[W,H,c]=fit(cv),cur=calc(S.t),s=cur.s,v=cur.v;
+  const carX=Math.max(130,W*.3),roadY=H*.6,gy=roadY+50;
+  let g=c.createLinearGradient(0,0,0,roadY);g.addColorStop(0,'#5BA8F0');g.addColorStop(1,'#CFE8FA');c.fillStyle=g;c.fillRect(0,0,W,roadY);
+  c.fillStyle='rgba(255,244,200,.9)';c.beginPath();c.arc(W*.82,H*.16,26,0,7);c.fill();
+  // ridges
+  const ridge=(off,base,amp,col,k)=>{c.fillStyle=col;c.beginPath();c.moveTo(0,roadY);for(let x=0;x<=W;x+=8){const u=(x+off)/k;c.lineTo(x,base-amp*(.55*Math.abs(Math.sin(u))+.45*Math.abs(Math.sin(u*2.3+1))))}c.lineTo(W,roadY);c.fill()};
+  ridge(s*PPM*.03,roadY-30,70,'#8FB6D9',140);ridge(s*PPM*.08,roadY-8,45,'#6E9BC2',90);
+  // buildings
+  const bo=s*PPM*.22;c.fillStyle='#4F7397';
+  for(let i=Math.floor(bo/70)-1;i<Math.floor((bo+W)/70)+2;i++){const bw=40+hash(i)*24,bh=22+hash(i+9)*46,x=i*70-bo;c.fillRect(x,roadY-bh,bw,bh);c.fillStyle='rgba(255,230,150,.55)';for(let r=0;r<bh-8;r+=12)c.fillRect(x+6,roadY-bh+6+r,4,5),c.fillRect(x+bw-12,roadY-bh+6+r,4,5);c.fillStyle='#4F7397'}
+  // grass + road
+  c.fillStyle='#5E9B5A';c.fillRect(0,roadY,W,H-roadY);
+  c.fillStyle='#3A3F4A';c.fillRect(0,roadY+8,W,84);
+  c.fillStyle='#E9EDF3';c.fillRect(0,roadY+8,W,3);c.fillRect(0,roadY+89,W,3);
+  const dash=60,doff=(s*PPM)%(dash*2);c.fillStyle='#F5D547';for(let x=-doff-dash*2;x<W+dash*2;x+=dash*2)c.fillRect(x,roadY+48,dash,4);
+  // ruler
+  const rulerY=roadY+92;c.fillStyle='#22272F';c.fillRect(0,rulerY,W,H-rulerY);
+  c.strokeStyle='#C9D3E0';c.fillStyle='#E8EEF6';c.font='600 11px Inter,sans-serif';c.textAlign='center';
+  const m0=Math.floor((s-carX/PPM)/5)*5-5,m1=Math.ceil((s+(W-carX)/PPM)/5)*5+5;
+  for(let m=m0;m<=m1;m+=5){const x=carX+(m-s)*PPM,big=m%10===0;c.lineWidth=1;c.beginPath();c.moveTo(x,rulerY);c.lineTo(x,rulerY+(big?12:7));c.stroke();if(big&&m>=0)c.fillText(m+' m',x,rulerY+26)}
+  // start line
+  const x0=carX-s*PPM;if(x0>-20&&x0<W+20){c.fillStyle='#fff';for(let i=0;i<8;i++){c.fillRect(x0-3,roadY+10+i*10,3,5);c.fillRect(x0,roadY+15+i*10,3,5)}}
+  // ghost markers each second
+  for(let k=0;k<=Math.floor(S.t);k++){const sk=calc(k).s,x=carX+(sk-s)*PPM;if(x<-30||x>W+30)continue;
+    c.strokeStyle='#fff';c.lineWidth=2;c.beginPath();c.moveTo(x,gy+2);c.lineTo(x,roadY-8);c.stroke();
+    c.fillStyle='#EF4444';c.fillRect(x,roadY-8,26,14);c.fillStyle='#fff';c.font='700 10px Inter,sans-serif';c.textAlign='left';c.fillText(k+' s',x+4,roadY+3)}
+  // speed lines
+  if(v>12&&S.play){c.strokeStyle='rgba(255,255,255,.35)';c.lineWidth=2;for(let i=0;i<7;i++){const y=roadY+16+hash(i+Math.floor(S.t*8))*70,l=v*2.2,x=carX-70-hash(i*3)*90;c.beginPath();c.moveTo(x,y);c.lineTo(x-l,y);c.stroke()}}
+  // car
+  const bob=(v>0.1&&S.play)?Math.sin(S.t*18)*.9:0,pitch=(S.play&&cur.a!==0)?-cur.a*.006:0;
+  c.fillStyle='rgba(0,0,0,.35)';c.beginPath();c.ellipse(carX,gy+2,68,6,0,0,7);c.fill();
+  c.save();c.translate(carX,gy+bob);c.rotate(pitch);
+  c.fillStyle='#D92D3A';c.beginPath();c.roundRect(-58,-40,116,26,9);c.fill();
+  c.fillStyle='#B01F2C';c.fillRect(-58,-22,116,8);
+  c.fillStyle='#D92D3A';c.beginPath();c.moveTo(-30,-40);c.lineTo(-17,-62);c.lineTo(20,-62);c.lineTo(36,-40);c.fill();
+  c.fillStyle='#BFE3F7';c.beginPath();c.moveTo(-24,-42);c.lineTo(-14,-58);c.lineTo(0,-58);c.lineTo(0,-42);c.fill();c.beginPath();c.moveTo(5,-42);c.lineTo(5,-58);c.lineTo(18,-58);c.lineTo(30,-42);c.fill();
+  c.fillStyle='#FFE27A';c.fillRect(54,-34,5,7);c.fillStyle='#7A0F19';c.fillRect(-59,-34,4,7);
+  [-34,34].forEach(wx=>{c.save();c.translate(wx,-13);c.fillStyle='#15181D';c.beginPath();c.arc(0,0,13,0,7);c.fill();c.rotate(s*PPM/13);c.strokeStyle='#AEB7C4';c.lineWidth=2;c.beginPath();c.arc(0,0,7,0,7);c.stroke();for(let i=0;i<5;i++){c.rotate(Math.PI*2/5);c.beginPath();c.moveTo(0,0);c.lineTo(0,7);c.stroke()}c.restore()});
+  c.restore();
+  // vectors
+  const arrow=(x,y,len,col,label)=>{if(Math.abs(len)<2)return;const d=Math.sign(len);c.strokeStyle=col;c.fillStyle=col;c.lineWidth=4;c.beginPath();c.moveTo(x,y);c.lineTo(x+len,y);c.stroke();c.beginPath();c.moveTo(x+len,y);c.lineTo(x+len-9*d,y-7);c.lineTo(x+len-9*d,y+7);c.fill();c.font='700 12px Inter,sans-serif';c.textAlign='center';c.fillStyle='#fff';c.strokeStyle='rgba(0,0,0,.45)';c.lineWidth=3;c.strokeText(label,x+len/2,y-11);c.fillText(label,x+len/2,y-11)};
+  arrow(carX,gy-82,v*3,'#16A34A','v = '+fmt(v)+' m/s');
+  if(S.mode==='glbb')arrow(carX,gy-108,S.a*22,'#EA580C','a = '+fmt(S.a)+' m/s²');
+  if(S.mode==='glbb'&&S.a<0&&cur.a===0&&v<=0.001){c.fillStyle='rgba(20,33,61,.85)';c.beginPath();c.roundRect(carX-52,gy-118,104,26,13);c.fill();c.fillStyle='#fff';c.font='600 12px Inter,sans-serif';c.textAlign='center';c.fillText('Mobil berhenti',carX,gy-101)}
+}
+
+/* ---------- Graphs ---------- */
+function graph(id,f,col,title,unit){
+  const [W,H,c]=fit($(id)),L=46,R=12,Tp=30,B=26,w=W-L-R,h=H-Tp-B;let mn=0,mx=0;
+  for(let i=0;i<=100;i++){const y=f(i*T/100);mn=Math.min(mn,y);mx=Math.max(mx,y)}
+  if(mx-mn<1){mx+=.5;mn-=.5}const pad=(mx-mn)*.08;mx+=pad;if(mn<0)mn-=pad;
+  const X=t=>L+t/T*w,Y=y=>Tp+h-(y-mn)/(mx-mn)*h;
+  c.font='500 11px Inter,sans-serif';c.fillStyle=C.ink;c.textAlign='left';c.font='700 13px "Space Grotesk",Inter,sans-serif';c.fillText(title,L-34,18);
+  c.font='500 11px Inter,sans-serif';c.fillStyle=C.mut;c.textAlign='right';
+  for(let i=0;i<=4;i++){const y=mn+(mx-mn)*i/4,py=Y(y);c.strokeStyle=C.line;c.lineWidth=1;c.beginPath();c.moveTo(L,py);c.lineTo(L+w,py);c.stroke();c.fillText(fmt(y,Math.abs(mx-mn)<10?1:0),L-6,py+4)}
+  c.textAlign='center';for(let t=0;t<=T;t+=5){c.fillText(t,X(t),H-8)}c.textAlign='right';c.fillText('t (s)',W-R,H-8);
+  c.strokeStyle=C.mut;c.lineWidth=1.2;c.beginPath();c.moveTo(L,Y(0));c.lineTo(L+w,Y(0));c.stroke();
+  c.setLineDash([4,4]);c.strokeStyle=col;c.globalAlpha=.35;c.lineWidth=2;c.beginPath();for(let i=0;i<=100;i++){const t=i*T/100;i?c.lineTo(X(t),Y(f(t))):c.moveTo(X(t),Y(f(t)))}c.stroke();c.setLineDash([]);c.globalAlpha=1;
+  c.strokeStyle=col;c.lineWidth=3;c.lineJoin='round';c.beginPath();const n=Math.max(1,Math.round(S.t/T*100));for(let i=0;i<=n;i++){const t=Math.min(S.t,i*S.t/n);i?c.lineTo(X(t),Y(f(t))):c.moveTo(X(t),Y(f(t)))}c.stroke();
+  c.fillStyle=col;c.beginPath();c.arc(X(S.t),Y(f(S.t)),5.5,0,7);c.fill();c.strokeStyle=C.card;c.lineWidth=2;c.stroke();
+  c.textAlign='right';c.fillStyle=col;c.font='600 12px Inter,sans-serif';c.fillText(fmt(f(S.t))+' '+unit,W-R,18);
+}
+
+/* ---------- UI ---------- */
+function ui(){
+  const q=calc(S.t),glbb=S.mode==='glbb';
+  $('rt').textContent=fmt(S.t);$('rs').textContent=fmt(q.s);$('rv').textContent=fmt(q.v);$('ra').textContent=fmt(q.a);
+  const t=q.tt,sp=x=>'<span style="color:var(--mut)">'+x+'</span>';
+  const row=(name,sym,sub,res,col)=>`<div class="rounded-xl p-3" style="background:var(--bg)"><div class="f font-semibold" style="color:${col}">${sym}</div><div class="f mt-1">${sub} = <b>${res}</b></div></div>`;
+  if(!glbb){
+    $('forms').innerHTML=row('','s = v · t',`s = ${fmt(S.v0,0)} × ${fmt(t)}`,fmt(q.s)+' m','var(--s)')+row('','v = konstan',`v = ${fmt(S.v0,0)}`,fmt(S.v0,0)+' m/s','var(--v)');
+    $('note').innerHTML='Percepatan nol, jadi kecepatan tidak berubah. Jarak bertambah sama besar setiap detik, dan bendera merah di jalan berjarak sama.';
+  }else{
+    const v2=q.v*q.v,r=S.v0*S.v0+2*S.a*q.s;
+    $('forms').innerHTML=row('','v = v₀ + a·t',`v = ${fmt(S.v0,0)} + (${fmt(S.a)})(${fmt(t)})`,fmt(q.v)+' m/s','var(--v)')
+      +row('','s = v₀·t + ½·a·t²',`s = ${fmt(S.v0,0)}(${fmt(t)}) + ½(${fmt(S.a)})(${fmt(t)})²`,fmt(q.s)+' m','var(--s)')
+      +row('','v² = v₀² + 2·a·s',`${fmt(v2)} = ${fmt(S.v0*S.v0,0)} + 2(${fmt(S.a)})(${fmt(q.s)})`,fmt(r)+' ✓','var(--acc)');
+    $('note').innerHTML=S.a===0?'Percepatan nol: gerak ini sama dengan GLB.':S.a>0?'Kecepatan bertambah <b>'+fmt(S.a)+' m/s</b> setiap detik (dipercepat). Jarak antar bendera makin lebar.':(q.a===0&&q.v<=0.001?'Mobil berhenti pada t = <b>'+fmt(t)+' s</b> karena kecepatan mencapai nol.':'Kecepatan berkurang <b>'+fmt(-S.a)+' m/s</b> setiap detik (diperlambat). Jarak antar bendera makin sempit.');
+  }
+  $('play').textContent=S.play?'Jeda':(S.t>=T?'Putar ulang':(S.t>0?'Lanjutkan':'Mulai'));
+}
+function setMode(m){S.mode=m;S.a=m==='glb'?0:(+$('a').value);$('mGLB').setAttribute('aria-pressed',m==='glb');$('mGLBB').setAttribute('aria-pressed',m==='glbb');
+  $('aWrap').style.display=m==='glb'?'none':'block';$('ft').textContent=m==='glb'?'Rumus GLB':'Rumus GLBB';
+  $('fd').textContent=m==='glb'?'Gerak Lurus Beraturan: lintasan lurus dengan kecepatan tetap.':'Gerak Lurus Berubah Beraturan: lintasan lurus dengan percepatan tetap.';
+  const P=m==='glb'?[['Sepeda santai',5,0],['Mobil di tol',25,0]]:[['Start dari diam',0,2],['Mobil mengerem',25,-4],['Sepeda motor tancap gas',8,3]];
+  $('presets').innerHTML='<span class="text-sm self-center" style="color:var(--mut)">Contoh:</span>'+P.map((p,i)=>`<button class="chip" data-i="${i}">${p[0]}</button>`).join('');
+  $('presets').querySelectorAll('button').forEach(b=>b.onclick=()=>{const p=P[b.dataset.i];$('v0').value=p[1];if(m==='glbb')$('a').value=p[2];sync();reset()});
+  sync();reset()}
+function sync(){S.v0=+$('v0').value;if(S.mode==='glbb')S.a=+$('a').value;$('v0o').textContent=fmt(S.v0,0)+' m/s';$('ao').textContent=fmt(+$('a').value)+' m/s²'}
+function reset(){S.t=0;S.play=false;ui()}
+$('mGLB').onclick=()=>setMode('glb');$('mGLBB').onclick=()=>setMode('glbb');
+['v0','a'].forEach(id=>$(id).oninput=()=>{sync();S.t=0;ui()});
+$('play').onclick=()=>{if(S.t>=T)S.t=0;S.play=!S.play;ui()};
+$('reset').onclick=reset;$('rate').onchange=e=>S.rate=+e.target.value;
+
+let last=0;
+function loop(ts){
+  const dt=Math.min(.05,(ts-last)/1000||0);last=ts;
+  if(S.play){S.t+=dt*S.rate;if(S.t>=T){S.t=T;S.play=false}ui()}
+  const k=cs();['bg','card','ink','mut','line','s','v','a','acc'].forEach(n=>C[n]=k.getPropertyValue('--'+n).trim());
+  drawScene();
+  graph('g1',t=>calc(t).s,C.s,'Jarak–waktu (s–t)','m');
+  graph('g2',t=>calc(t).v,C.v,'Kecepatan–waktu (v–t)','m/s');
+  graph('g3',t=>calc(t).a,C.a,'Percepatan–waktu (a–t)','m/s²');
+  requestAnimationFrame(loop);
+}
+setMode('glb');requestAnimationFrame(loop);
+</script>
+</body>
+</html>
